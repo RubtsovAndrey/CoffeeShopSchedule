@@ -35,5 +35,21 @@ namespace CoffeeShop.Tests
             // Проверка (Assert)
             Assert.False(isValid);
         }
+
+        [Fact]
+        public void Duration_With1HourLunch_CalculatesCorrectly()
+        {
+            // Подготовка: Смена с 9:00 до 18:00 (9 часов) и 1 час на обед
+            var start = new DateTime(2026, 5, 20, 9, 0, 0); 
+            var end = new DateTime(2026, 5, 20, 18, 0, 0);  
+            var lunch = TimeSpan.FromHours(1);
+            var shift = new Shift("Петр", start, end, lunch);
+
+            // Действие: получаем фактическую длительность
+            var actualDuration = shift.Duration;
+
+            // Проверка: 9 часов минус 1 час = 8 рабочих часов
+            Assert.Equal(TimeSpan.FromHours(8), actualDuration);
+        }
     }
 }

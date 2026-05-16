@@ -7,15 +7,19 @@ namespace CoffeeShop.Domain
         public string EmployeeName { get; }
         public DateTime StartTime { get; }
         public DateTime EndTime { get; }
+        public TimeSpan LunchBreak { get; } // Новое свойство для обеда
 
-        public Shift(string employeeName, DateTime startTime, DateTime endTime)
+        // Добавили lunchBreak в конструктор с дефолтным значением
+        public Shift(string employeeName, DateTime startTime, DateTime endTime, TimeSpan lunchBreak = default)
         {
             EmployeeName = employeeName;
             StartTime = startTime;
             EndTime = endTime;
+            LunchBreak = lunchBreak;
         }
 
-        public TimeSpan Duration => EndTime - StartTime;
+        // Длительность теперь: (Конец - Начало) минус Обед
+        public TimeSpan Duration => (EndTime - StartTime) - LunchBreak;
 
         public bool IsValidDuration()
         {
