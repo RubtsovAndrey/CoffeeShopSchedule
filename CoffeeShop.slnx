@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="CoffeeShop.Domain/CoffeeShop.Domain.csproj" />
+  <Project Path="CoffeeShop.Tests/CoffeeShop.Tests.csproj" />
+</Solution>
