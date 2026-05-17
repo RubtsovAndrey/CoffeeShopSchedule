@@ -8,14 +8,37 @@ using System.Linq; // Нужно для работы со списками
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Просим фреймворк достать строку из секции ConnectionStrings -> DefaultConnection
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=coffeeshop.db"));
+    options.UseSqlite(connectionString));
 
 var app = builder.Build();
 
-// 1. POST: Создать и СОХРАНИТЬ смену
-// Обрати внимание: мы добавили AppDbContext прямо в параметры. .NET сам подставит базу данных!
-app.MapPost("/api/shifts", (ShiftDto dto, AppDbContext db) =>
+// НАША ЛОВУШКА ДЛЯ ОШИБОК (Middleware)
+app.Use(async (context, next) =>
+{
+    try
+    {
+        // Пропускаем запрос дальше по трубе к нашим эндпоинтам
+        await next(); 
+    }
+    catch (Exception ex)
+    {
+        // Если кто-то внутри трубы упал, мы ловим ошибку здесь!
+        
+        // 1. Пишем подробности в лог (для разработчиков и саппорта)
+        app.Logger.LogError(ex, "КРИТИЧЕСКИЙ СБОЙ СИСТЕМЫ: Произошла непредвиденная ошибка!");
+
+        // 2. Формируем вежливый ответ (для пользователя)
+        context.Response.StatusCode = 500; // 500 - Internal Server Error
+        await context.Response.WriteAsJsonAsync(new { Message = "Упс! Что-то сломалось на нашей стороне. Техподдержка уже разбужена и чинит!" });
+    }
+});
+
+// 1. Добавили слово "async" перед параметрами
+app.MapPost("/api/shifts", async (ShiftDto dto, AppDbContext db) =>
 {
     var shift = new Shift(dto.EmployeeName, dto.StartTime, dto.EndTime, dto.LunchBreak);
     
@@ -24,19 +47,26 @@ app.MapPost("/api/shifts", (ShiftDto dto, AppDbContext db) =>
         return Results.BadRequest(new { Message = "Ошибка: Смена должна быть от 2 до 12 рабочих часов!" });
     }
 
-    // Сохраняем в базу данных
     db.Shifts.Add(shift);
-    db.SaveChanges(); // Только в этот момент данные физически пишутся в файл
+    
+    // 2. Добавили "await" перед сохранением и вызвали асинхронную версию метода
+    await db.SaveChangesAsync(); 
 
     return Results.Ok(new { Message = "Смена успешно сохранена!", ShiftId = shift.Id });
 });
 
-// 2. GET: Получить ВСЕ смены из базы
-app.MapGet("/api/shifts", (AppDbContext db) =>
+// 3. Здесь тоже добавили "async"
+app.MapGet("/api/shifts", async (AppDbContext db) =>
 {
-    // Берем таблицу Shifts и превращаем её в список
-    var allShifts = db.Shifts.ToList();
+    // 4. Добавили "await" и используем ToListAsync() вместо обычного ToList()
+    var allShifts = await db.Shifts.ToListAsync();
     return Results.Ok(allShifts);
+});
+
+app.MapGet("/api/crash", () =>
+{
+    // Имитируем жесткое падение кода
+    throw new Exception("База данных взорвалась!");
 });
 
 app.Run();
