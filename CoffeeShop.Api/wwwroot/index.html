@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Управление сменами | Кофейня</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f4f9; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1, h3 { color: #333; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        button:hover { background-color: #0056b3; }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #e9ecef; margin: 8px 0; padding: 10px; border-radius: 4px; }
+        .form-group { margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 4px; border: 1px solid #ddd; }
+        input { display: block; width: 95%; margin-top: 5px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>☕ Расписание кофейни</h1>
+    
+    <div class="form-group">
+        <h3>Добавить новую смену</h3>
+        <label>Имя бариста: <input type="text" id="empName" placeholder="Например: Анна"></label>
+        <label>Начало смены: <input type="datetime-local" id="startTime"></label>
+        <label>Конец смены: <input type="datetime-local" id="endTime"></label>
+        <label>Обед (часы:минуты): <input type="time" id="lunchBreak" value="01:00"></label>
+        
+        <button onclick="addShift()">Создать смену</button>
+    </div>
+
+    <button onclick="loadShifts()" style="background-color: #28a745;">🔄 Обновить список смен</button>
+    
+    <ul id="shiftsList"></ul>
+</div>
+
+<script>
+    // Функция ЧТЕНИЯ (GET) - осталась как была
+    async function loadShifts() {
+        try {
+            const response = await fetch('/api/shifts');
+            const shifts = await response.json();
+            const list = document.getElementById('shiftsList');
+            list.innerHTML = '';
+
+            shifts.forEach(shift => {
+                const li = document.createElement('li');
+                const startTime = new Date(shift.startTime).toLocaleString('ru-RU');
+                const endTime = new Date(shift.endTime).toLocaleString('ru-RU');
+                li.innerHTML = `<strong>${shift.employeeName}</strong>: ${startTime} — ${endTime}`;
+                list.appendChild(li);
+            });
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    // НОВАЯ ФУНКЦИЯ ЗАПИСИ (POST)
+    async function addShift() {
+        // 1. Собираем данные из полей ввода на странице
+        const dto = {
+            employeeName: document.getElementById('empName').value,
+            startTime: document.getElementById('startTime').value,
+            endTime: document.getElementById('endTime').value,
+            // Добавляем секунды, чтобы C# TimeSpan правильно понял формат
+            lunchBreak: document.getElementById('lunchBreak').value + ':00' 
+        };
+
+        try {
+            // 2. Отправляем POST-запрос на наш сервер
+            const response = await fetch('/api/shifts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dto) // Превращаем объект в текст JSON
+            });
+
+            // 3. Проверяем ответ от сервера
+            if (response.ok) {
+                alert('Смена успешно создана!');
+                loadShifts(); // Автоматически обновляем список, чтобы увидеть новую смену
+            } else {
+                // Если сервер вернул ошибку (например, смена 15 часов)
+                const errorData = await response.json();
+                alert(errorData.message); 
+            }
+        } catch (error) {
+            alert('Ошибка сети или сервер недоступен');
+        }
+    }
+
+    // Автоматически загружаем смены при открытии страницы
+    window.onload = loadShifts;
+</script>
+
+</body>
+</html>

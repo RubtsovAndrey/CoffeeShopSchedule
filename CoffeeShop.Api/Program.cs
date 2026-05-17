@@ -8,6 +8,9 @@ using System.Linq; // Нужно для работы со списками
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 // Просим фреймворк достать строку из секции ConnectionStrings -> DefaultConnection
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -36,6 +39,11 @@ app.Use(async (context, next) =>
         await context.Response.WriteAsJsonAsync(new { Message = "Упс! Что-то сломалось на нашей стороне. Техподдержка уже разбужена и чинит!" });
     }
 });
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.UseStaticFiles();
 
 // 1. Добавили слово "async" перед параметрами
 app.MapPost("/api/shifts", async (ShiftDto dto, AppDbContext db) =>
