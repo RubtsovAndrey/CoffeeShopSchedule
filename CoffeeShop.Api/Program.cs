@@ -1,38 +1,44 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using CoffeeShop.Domain;
+using CoffeeShop.Api;
 using System;
+using System.Linq; // Нужно для работы со списками
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite("Data Source=coffeeshop.db"));
+
 var app = builder.Build();
 
-// Наш первый HTTP-эндпоинт. Сюда менеджер будет слать данные смены для проверки
-app.MapPost("/api/shifts/validate", (ShiftDto dto) =>
+// 1. POST: Создать и СОХРАНИТЬ смену
+// Обрати внимание: мы добавили AppDbContext прямо в параметры. .NET сам подставит базу данных!
+app.MapPost("/api/shifts", (ShiftDto dto, AppDbContext db) =>
 {
-    try
+    var shift = new Shift(dto.EmployeeName, dto.StartTime, dto.EndTime, dto.LunchBreak);
+    
+    if (!shift.IsValidDuration())
     {
-        // Переводим текстовые данные из запроса в наши строгие объекты Domain
-        var shift = new Shift(dto.EmployeeName, dto.StartTime, dto.EndTime, dto.LunchBreak);
-        
-        // Вызываем бизнес-логику, которую мы написали и протестировали ранее
-        var isValid = shift.IsValidDuration();
+        return Results.BadRequest(new { Message = "Ошибка: Смена должна быть от 2 до 12 рабочих часов!" });
+    }
 
-        if (isValid)
-        {
-            return Results.Ok(new { Message = $"Смена для {dto.EmployeeName} валидна. Длительность: {shift.Duration.TotalHours} ч." });
-        }
-        else
-        {
-            return Results.BadRequest(new { Message = "Ошибка: Смена должна быть от 2 до 12 рабочих часов (с учетом обеда)!" });
-        }
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(ex.Message);
-    }
+    // Сохраняем в базу данных
+    db.Shifts.Add(shift);
+    db.SaveChanges(); // Только в этот момент данные физически пишутся в файл
+
+    return Results.Ok(new { Message = "Смена успешно сохранена!", ShiftId = shift.Id });
+});
+
+// 2. GET: Получить ВСЕ смены из базы
+app.MapGet("/api/shifts", (AppDbContext db) =>
+{
+    // Берем таблицу Shifts и превращаем её в список
+    var allShifts = db.Shifts.ToList();
+    return Results.Ok(allShifts);
 });
 
 app.Run();
 
-// Специальный объект (Data Transfer Object) для приема данных из интернета
 public record ShiftDto(string EmployeeName, DateTime StartTime, DateTime EndTime, TimeSpan LunchBreak);
