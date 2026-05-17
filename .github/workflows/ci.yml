@@ -1,0 +1,23 @@
+name: CI Pipeline # Название нашей автоматизации
+
+# 1. КОГДА запускать?
+on:
+  push:
+    branches: [ "main" ] # При любом пуше в ветку main
+  pull_request:
+    branches: [ "main" ] # При попытке влить новую ветку (фичу) в main
+
+# 2. ЧТО делать?
+jobs:
+  test-our-code:
+    runs-on: ubuntu-latest # GitHub выделит нам бесплатный сервер на Linux
+
+    steps:
+    # Шаг А: Сервер скачивает наш код из репозитория
+    - name: Get code from repo
+      uses: actions/checkout@v4
+
+    # Шаг Б: Сервер запускает наш Dockerfile
+    # Если тесты упадут, команда вернет ошибку, и GitHub пометит сборку красным
+    - name: Build Docker and Run Tests
+      run: docker build -t coffeeshop-tests .
