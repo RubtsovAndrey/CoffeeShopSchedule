@@ -71,6 +71,24 @@ app.MapGet("/api/shifts", async (AppDbContext db) =>
     return Results.Ok(allShifts);
 });
 
+app.MapDelete("/api/shifts/{id}", async (Guid id, AppDbContext db) =>
+{
+    // 1. Ищем смену в базе по ID
+    var shift = await db.Shifts.FindAsync(id);
+    
+    // 2. Если такой смены нет, возвращаем ошибку 404 (Not Found)
+    if (shift is null)
+    {
+        return Results.NotFound(new { Message = "Смена с таким ID не найдена!" });
+    }
+
+    // 3. Если нашли - удаляем и сохраняем изменения
+    db.Shifts.Remove(shift);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { Message = $"Смена {id} успешно удалена!" });
+});
+
 app.MapGet("/api/crash", () =>
 {
     // Имитируем жесткое падение кода
